@@ -6,7 +6,6 @@ name = "pypi"
 [packages]
 deepface = "*"
 tf-keras = "*"
-scikit-learn = "*"
 tensorflow = "*"
 matplotlib = "*"
 segmentation-models = "*"

@@ -42,30 +42,32 @@ def crop_image(image, face):
     return image
 
 def apply_semantic_segmentation(image):
-    # Load pre-trained MobileNetV2 model + higher level layers
-    model = tf.keras.applications.MobileNetV2(weights="imagenet", include_top=False)
+    model = sm.Unet('mobilenetv2', encoder_weights='imagenet')
 
-    # Preprocess the image
-    image_resized = cv2.resize(image, (224, 224))
-    image_array = img_to_array(image_resized)
-    image_array = np.expand_dims(image_array, axis=0)
-    image_array = preprocess_input(image_array)
+    # # Load pre-trained MobileNetV2 model + higher level layers
+    # model = tf.keras.applications.MobileNetV2(weights="imagenet", include_top=False)
 
-    # Perform semantic segmentation
-    predictions = model.predict(image_array)
-    predictions = tf.image.resize(predictions, (image.shape[0], image.shape[1]))
-    num_classes = predictions.shape[-1]
-    predictions = tf.argmax(predictions, axis=-1)
-    predictions = predictions[0]
+    # # Preprocess the image
+    # image_resized = cv2.resize(image, (224, 224))
+    # image_array = img_to_array(image_resized)
+    # image_array = np.expand_dims(image_array, axis=0)
+    # image_array = preprocess_input(image_array)
 
-    # Display the segmentation labels
-    plt.imshow(predictions/num_classes)
-    plt.title("Semantic Segmentation Labels")
-    plt.show()
+    # # Perform semantic segmentation
+    # predictions = model.predict(image_array)
+    # predictions = tf.image.resize(predictions, (image.shape[0], image.shape[1]))
+    # num_classes = predictions.shape[-1]
+    # predictions = tf.argmax(predictions, axis=-1)
+    # predictions = predictions[0]
 
-    # Set background to white
-    image[predictions == 0] = [255, 255, 255]
-    return image
+    # # Display the segmentation labels
+    # plt.imshow(predictions/num_classes)
+    # plt.title("Semantic Segmentation Labels")
+    # plt.show()
+
+    # # Set background to white
+    # image[predictions == 0] = [255, 255, 255]
+    # return image
 
 def process_image(input_path, output_path):
     try:

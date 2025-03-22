@@ -1,3 +1,7 @@
 *.zip
 *.png
 *.jpg
+Humans/
+.DS_Store
+*.pth
+out/
