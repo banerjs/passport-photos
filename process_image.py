@@ -31,7 +31,8 @@ def crop_image(image, face):
     mask_height = int(2 * resolution)  # Total height of the mask is 2 inches
     mask_width = int(2 * resolution)   # Total width of the mask is 2 inches
 
-    mask_top = max(0, eye_height - int(0.87 * resolution))  # Eyes are 1.25 from bottom
+    # Ideally this value should be ~0.87. But adjust according to the image
+    mask_top = max(0, eye_height - int(1.05 * resolution))  # Eyes are 1.25 from bottom
     mask_bottom = min(image.shape[0], mask_top + mask_height)
 
     mask_left = max(0, face_center_x - mask_width // 2)
@@ -41,6 +42,8 @@ def crop_image(image, face):
 
     # Crop the image to the mask area
     image = image[mask_top:mask_bottom, mask_left:mask_right]
+
+    plt.imsave("debug.png", cv2.cvtColor(image, cv2.COLOR_BGR2RGBA))
 
     print("Image cropped to face")
     return image
@@ -63,7 +66,9 @@ def remove_background(image):
         # Assume that the mask of max area is the background
         max_mask = None
         max_area = -np.inf
-        for mask in masks:
+        for idx, mask in enumerate(masks):
+            # print(idx, mask['bbox'], mask['area'])
+            # plt.imsave(f"debug{idx}.png", mask['segmentation'])
             if mask['area'] > max_area:
                 max_area = mask['area']
                 max_mask = mask
@@ -73,7 +78,11 @@ def remove_background(image):
             pickle.dump(max_mask, fd)
 
     # Set the background to white
-    segmentation = max_mask['segmentation']
+    if max_mask['bbox'][0] != 0 and max_mask['bbox'][1] != 0:
+        segmentation = 1 - max_mask['segmentation']
+    else:
+        segmentation = max_mask['segmentation']
+
     image = image * (1 - segmentation[:, :, None])
     image = np.where(segmentation[:, :, None], 255, image)
 
