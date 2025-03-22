@@ -1,0 +1,18 @@
+[[source]]
+url = "https://pypi.org/simple"
+verify_ssl = true
+name = "pypi"
+
+[packages]
+deepface = "*"
+tf-keras = "*"
+scikit-learn = "*"
+tensorflow = "*"
+matplotlib = "*"
+segmentation-models = "*"
+segment-anything = {git = "https://github.com/facebookresearch/segment-anything.git"}
+
+[dev-packages]
+
+[requires]
+python_version = "3.12"
