@@ -1,12 +1,14 @@
-from PIL import Image
 import cv2
-import numpy as np
-import sys
-from deepface import DeepFace
-
-import segmentation_models as sm
-
 import matplotlib.pyplot as plt
+import numpy as np
+import os
+import pickle
+import sys
+
+from PIL import Image
+from deepface import DeepFace
+from segment_anything import SamAutomaticMaskGenerator, sam_model_registry
+
 
 def detect_faces(input_path):
     # Detect faces using DeepFace API
@@ -39,37 +41,58 @@ def crop_image(image, face):
 
     # Crop the image to the mask area
     image = image[mask_top:mask_bottom, mask_left:mask_right]
+
+    print("Image cropped to face")
     return image
 
-def apply_semantic_segmentation(image):
-    model = sm.Unet('mobilenetv2', encoder_weights='imagenet')
+def remove_background(image):
+    sam = sam_model_registry["vit_b"](checkpoint="sam_vit_b_01ec64.pth")
+    sam.to(device="cpu")
 
-    # # Load pre-trained MobileNetV2 model + higher level layers
-    # model = tf.keras.applications.MobileNetV2(weights="imagenet", include_top=False)
+    used_save = os.path.exists("save.pkl")
 
-    # # Preprocess the image
-    # image_resized = cv2.resize(image, (224, 224))
-    # image_array = img_to_array(image_resized)
-    # image_array = np.expand_dims(image_array, axis=0)
-    # image_array = preprocess_input(image_array)
+    if used_save:
+        with open("save.pkl", "rb") as fd:
+            max_mask = pickle.load(fd)
+    else:
+        generator = SamAutomaticMaskGenerator(sam, output_mode="binary_mask")
+        print("Segmentation model loaded")
 
-    # # Perform semantic segmentation
-    # predictions = model.predict(image_array)
-    # predictions = tf.image.resize(predictions, (image.shape[0], image.shape[1]))
-    # num_classes = predictions.shape[-1]
-    # predictions = tf.argmax(predictions, axis=-1)
-    # predictions = predictions[0]
+        masks = generator.generate(image)
 
-    # # Display the segmentation labels
-    # plt.imshow(predictions/num_classes)
-    # plt.title("Semantic Segmentation Labels")
-    # plt.show()
+        # Assume that the mask of max area is the background
+        max_mask = None
+        max_area = -np.inf
+        for mask in masks:
+            if mask['area'] > max_area:
+                max_area = mask['area']
+                max_mask = mask
 
-    # # Set background to white
-    # image[predictions == 0] = [255, 255, 255]
-    # return image
+    if not used_save:
+        with open("save.pkl", "wb") as fd:
+            pickle.dump(max_mask, fd)
 
-def process_image(input_path, output_path):
+    # Set the background to white
+    segmentation = max_mask['segmentation']
+    image = image * (1 - segmentation[:, :, None])
+    image = np.where(segmentation[:, :, None], 255, image)
+
+    print("Background removed")
+    return image.astype(np.uint8)
+
+def tile_image(image, x, y):
+    tiled_image = np.tile(image, (y, x, 1))
+    print(f"Image tiled {x} times in x direction and {y} times in y direction")
+    return tiled_image
+
+def resize_image(image, width, height):
+    resized_image = cv2.resize(image, (width, height))
+    print(f"Image resized to {width}x{height}")
+    return resized_image
+
+def process_image(input_path, output_path, width=6, height=4, dpi=400):
+    size = 2 # inches
+
     try:
         # Load the image using OpenCV
         img_cv = cv2.imread(input_path)
@@ -77,20 +100,12 @@ def process_image(input_path, output_path):
         # Pipeline
         face = detect_faces(input_path)
         img_cv_cropped = crop_image(img_cv, face)
-        apply_semantic_segmentation(img_cv_cropped)
+        img_cv_cropped = remove_background(img_cv_cropped)
+        img_cv_tiled = tile_image(img_cv_cropped, width // size, height // size)
+        img_cv_resized = resize_image(img_cv_tiled, width * dpi, height * dpi)
 
-        # Convert the cropped image to RGBA using PIL
-        img_pil = Image.fromarray(cv2.cvtColor(img_cv_cropped, cv2.COLOR_BGR2RGBA))
-        datas = img_pil.getdata()
-
-        new_data = []
-        for item in datas:
-            if item[3] == 0:  # If the pixel is transparent
-                new_data.append((255, 255, 255, 255))  # Change to white
-            else:
-                new_data.append(item)  # Keep the original pixel
-
-        img_pil.putdata(new_data)
+        # Convert the resized image to RGBA using PIL
+        img_pil = Image.fromarray(cv2.cvtColor(img_cv_resized, cv2.COLOR_BGR2RGBA))
         img_pil.save(output_path)
         print(f"Processed image saved as {output_path}")
     except Exception as e:

@@ -10,6 +10,7 @@ tensorflow = "*"
 matplotlib = "*"
 segmentation-models = "*"
 segment-anything = {git = "https://github.com/facebookresearch/segment-anything.git"}
+pycocotools = "*"
 
 [dev-packages]
 
