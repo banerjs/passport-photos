@@ -24,6 +24,13 @@ def crop_image(image, face):
     fx, fy, fw, fh = face['facial_area']['x'], face['facial_area']['y'], face['facial_area']['w'], face['facial_area']['h']
     left_eye, right_eye = face['facial_area']['left_eye'], face['facial_area']['right_eye']
 
+    # Optional padding to include if the face bounding box is significantly cropping out the chin / top of the head
+    ypad = int(0.1 * fh)
+    fy = fy - ypad
+    fh = fh + (2 * ypad)
+
+    plt.imsave("face.png", cv2.cvtColor(image[fy:fy+fh, fx:fx+fw], cv2.COLOR_BGR2RGBA))
+
     eye_height = (left_eye[1] + right_eye[1]) // 2
     face_center_x = fx + fw // 2
     resolution = fh / 1.25
@@ -32,7 +39,7 @@ def crop_image(image, face):
     mask_width = int(2 * resolution)   # Total width of the mask is 2 inches
 
     # Ideally this value should be ~0.87. But adjust according to the image
-    mask_top = max(0, eye_height - int(1.05 * resolution))  # Eyes are 1.25 from bottom
+    mask_top = max(0, eye_height - int(0.87 * resolution))  # Eyes are 1.25 from bottom
     mask_bottom = min(image.shape[0], mask_top + mask_height)
 
     mask_left = max(0, face_center_x - mask_width // 2)
